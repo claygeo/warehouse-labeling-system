@@ -7,7 +7,7 @@
 [![jsPDF](https://img.shields.io/badge/jsPDF-2.5-EE3524)](https://github.com/parallax/jsPDF)
 [![Zebra](https://img.shields.io/badge/Zebra-ZT610%20thermal-000000)](https://www.zebra.com/)
 
-A production warehouse-floor tool that turns messy inventory exports into scannable 4x6 thermal labels for a cannabis distribution facility. An operator loads the day's inventory, scans a barcode, and the system resolves the product, assigns a batch, and prints a clean label on a Zebra ZT610. It has been in daily production since 2024 and is currently on v7.4.1. Every box that leaves the floor carries a label this system printed.
+A production warehouse-floor tool that turns messy inventory exports into scannable 4x6 thermal labels for a cannabis distribution facility. An operator loads the day's inventory, scans a barcode, and the system resolves the product, assigns a batch, and prints a clean label on a Zebra ZT610. I prototyped it on the warehouse floor as a logistics coordinator in December 2024, and it has been in daily production ever since, currently on v7.4.1. Every box that leaves the floor carries a label this system printed.
 
 > **Note:** This is a showcase repo. The production codebase is private because it is an internal tool for a real employer and prints on real inventory. This README documents the architecture, the engineering decisions, and the field-earned problems I solved. It intentionally contains no code, no credentials, and no company data.
 
@@ -153,7 +153,7 @@ Each 4x6 label is composed on the fly from the resolved product and the operator
 
 | Metric | Value |
 |--------|-------|
-| Status | In daily production since 2024 |
+| Status | Prototyped Dec 2024; in daily production since |
 | Version | v7.4.1 (evolved through several label-format migrations) |
 | Facilities | 2 (horizontal and vertical label formats) |
 | Operators | 8 named users across 3 roles (Administrator / Manager / Warehouse) |
