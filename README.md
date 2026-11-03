@@ -1,13 +1,13 @@
 # Inventory & Labeling System
 
 [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://react.dev/)
-[![Vite](https://img.shields.io/badge/Vite-5-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
+[![Vite](https://img.shields.io/badge/Vite-7-646CFF?logo=vite&logoColor=white)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38BDF8?logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?logo=supabase&logoColor=white)](https://supabase.com/)
-[![jsPDF](https://img.shields.io/badge/jsPDF-2.5-EE3524)](https://github.com/parallax/jsPDF)
+[![jsPDF](https://img.shields.io/badge/jsPDF-4-EE3524)](https://github.com/parallax/jsPDF)
 [![Zebra](https://img.shields.io/badge/Zebra-ZT610%20thermal-000000)](https://www.zebra.com/)
 
-A production warehouse-floor tool that turns messy inventory exports into scannable 4x6 thermal labels for a cannabis distribution facility. An operator loads the day's inventory, scans a barcode, and the system resolves the product, assigns a batch, and prints a clean label on a Zebra ZT610. I prototyped it on the warehouse floor as a logistics coordinator in December 2024, and it has been in daily production ever since, currently on v7.4.1. Every box that leaves the floor carries a label this system printed.
+A production warehouse-floor tool that turns messy inventory exports into scannable 4x6 thermal labels for a cannabis distribution facility. An operator loads the day's inventory, scans a barcode, and the system resolves the product, assigns a batch, and prints a clean label on a Zebra ZT610. I built it in July 2025 while working as a logistics coordinator, and the floor runs on it daily, currently v7.7.6. Since print tracking started in August 2026 it has generated 144,000+ labels, about 2,400 on a working day.
 
 > **Note:** This is a showcase repo. The production codebase is private because it is an internal tool for a real employer and prints on real inventory. This README documents the architecture, the engineering decisions, and the field-earned problems I solved. It intentionally contains no code, no credentials, and no company data.
 
@@ -17,7 +17,7 @@ A production warehouse-floor tool that turns messy inventory exports into scanna
 
 The warehouse relabels product before it ships. The source data comes out of a state track-and-trace system (BioTrack) and a transfer tool (Sweed) as CSV and Excel exports, and it is rough: three different report formats, columns that move between exports, product names abbreviated into codes a human cannot read, and Excel quietly corrupting 16-digit barcodes into scientific notation (`7.75984E+15`).
 
-On top of that, two facilities run different label orientations, print runs can be 400+ labels at once, and the whole thing has to work on a warehouse floor where the network is not guaranteed. The old process leaned on spreadsheets and a legacy label sheet. It was slow, it was error-prone, and a wrong label on a box is a real operational problem.
+On top of that, two facilities run different label orientations, print runs can be thousands of labels at once, and the whole thing has to work on a warehouse floor where the network is not guaranteed. The old process leaned on spreadsheets and a legacy label sheet. It was slow, it was error-prone, and a wrong label on a box is a real operational problem.
 
 ## What I Built
 
@@ -97,7 +97,7 @@ The importer detects scientific-notation strings and reconstructs the full integ
 
 One site prints horizontal labels; the other prints vertical. Rather than maintain two renderers, the label engine draws to a single Canvas 2D context and branches on the operator's facility: the horizontal site rotates the canvas 90 degrees so a 4x6 portrait sheet reads as 6x4 landscape once peeled, and the vertical site draws a true 4x6 portrait with a stacked layout. The orientation follows the logged-in user's facility, with a per-label toggle for the occasional vertical override.
 
-### 4. Rendering 1000+ labels in a browser without crashing
+### 4. Rendering thousands of labels in a browser without crashing
 
 A print run can be hundreds of pages, each an oversampled canvas rendered to JPEG and appended to a single jsPDF document. Do that naively and the tab runs out of memory.
 
@@ -138,14 +138,14 @@ Each 4x6 label is composed on the fly from the resolved product and the operator
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | React 18, React Router 6 |
-| Build | Vite 5, Tailwind CSS 3.4, PostCSS |
-| PDF / render | jsPDF 2.5, Canvas 2D, JsBarcode 3.12 (CODE128) |
+| Framework | React 18, React Router 7 |
+| Build | Vite 7, Tailwind CSS 3.4, PostCSS |
+| PDF / render | jsPDF 4, Canvas 2D, JsBarcode 3.12 (CODE128) |
 | Printer path | Zebra ZT610 @ 203 DPI, optional Zebra Browser Print (ZPL) |
-| Import | PapaParse 5.4 (CSV), SheetJS / xlsx 0.18 (Excel) |
-| Data | Supabase (PostgreSQL) catalog, sessionStorage + localStorage |
+| Import | PapaParse 5.4 (CSV), SheetJS / xlsx 0.20 (Excel) |
+| Data | Supabase (PostgreSQL) catalog, accounts and audit log; sessionStorage + localStorage |
 | Dates / UI | date-fns 3.6, lucide-react, react-hot-toast |
-| Deploy | Netlify (SPA, CSP, immutable asset caching), GitHub Actions CI (build) |
+| Deploy | Netlify (SPA, CSP, immutable asset caching), GitHub Actions CI (unit, real-browser and migration tests, audit, build) |
 
 ---
 
@@ -153,15 +153,16 @@ Each 4x6 label is composed on the fly from the resolved product and the operator
 
 | Metric | Value |
 |--------|-------|
-| Status | Prototyped Dec 2024; in daily production since |
-| Version | v7.4.1 (evolved through several label-format migrations) |
+| Status | Built Jul 2025; in daily use on the floor |
+| Labels generated | 144,000+ since tracking began Aug 2026, about 2,400 on a working day |
+| Version | v7.7.6 (evolved through several label-format migrations) |
 | Facilities | 2 (horizontal and vertical label formats) |
-| Operators | 8 named users across 3 roles (Administrator / Manager / Warehouse) |
+| Operators | Named per-user accounts with Administrator and Warehouse roles |
 | Catalog | 1,000+ products, paginated past Supabase's default row limit |
-| Print runs | Batch-safe to 400+ labels per run |
+| Print runs | Up to 5,000 labels per PDF, with a review step before every print |
 | Storage model | Session working data + durable local config + cloud catalog |
 
-The label format has been through real migrations, from a Uline legal-sheet 4-up layout on an HP sheet printer to the current single 4x6 thermal on the Zebra. The version number is not decoration; it is a tool that has been maintained on a live floor for over a year.
+The label format has been through real migrations, from a Uline legal-sheet 4-up layout on an HP sheet printer to the current single 4x6 thermal on the Zebra. The version number is not decoration; it is a tool that has been maintained through those changes since July 2025 while the floor kept printing on it.
 
 ---
 
@@ -170,8 +171,8 @@ The label format has been through real migrations, from a Uline legal-sheet 4-up
 Portfolio repos should be honest about what a thing is and is not, so:
 
 - **These are operational labels, not certified compliance labels.** They exist to move product accurately through the warehouse: a readable name, a scannable barcode, batch and box tracking, dates, and an allergen flag. The system does not validate against any state's cannabis labeling regulation and is not a METRC/BioTrack compliance-certification product.
-- **Auth is scoped for an internal, controlled-network tool.** Operators are seeded from environment configuration rather than a full identity provider. Appropriate for a fixed set of warehouse users behind the facility network, not for a public or multi-tenant app.
-- **It is field-hardened, not test-covered.** CI runs a build on every push, and the reliability comes from a year of real use and defensive coding (error boundaries, per-row try/catch, non-blocking cloud writes, barcode fallbacks), not from an automated test suite.
+- **Auth is scoped for an internal tool.** Each operator has a named account (Supabase Auth) and every print is logged to an audit trail under that account. It is built for a fixed set of warehouse users, not for a public or multi-tenant app.
+- **It is field-hardened and test-covered.** CI runs unit tests, real-browser label tests and migration tests on every push. Much of the reliability still comes from daily floor use and defensive coding (error boundaries, per-row try/catch, non-blocking cloud writes, barcode fallbacks).
 - **The allergen flag is a keyword heuristic**, not an ingredient database. It is a useful safety prompt for the operator, not a regulatory guarantee.
 
 The interesting engineering here is not scale for its own sake. It is the accumulated, specific knowledge of what actually breaks between a state track-and-trace export and a clean label on a physical box.
