@@ -27,7 +27,7 @@ A single-page app the floor actually runs every day:
 - Resolves abbreviated BioTrack names against a master product catalog to recover the full retail name, strain, and case count.
 - Scans barcodes and auto-assigns letter batch IDs (A to Z, then AA to ZZ) per SKU.
 - Renders 4x6 thermal labels client-side and prints them on a Zebra ZT610, in two orientations depending on the facility.
-- Keeps working when the network drops, backed by a three-tier catalog cache.
+- Keeps the catalog available when the network drops, backed by a verified local copy.
 - Logs any product it cannot recognize and gives admins a screen to remap it, so the catalog heals over time.
 
 The floor went from reading codes off a spreadsheet to scanning a barcode and pulling a finished label off the printer.
@@ -42,11 +42,11 @@ The floor went from reading codes off a spreadsheet to scanning a barcode and pu
         │                                        │
         ▼                                        ▼
   ┌──────────────────┐                  ┌───────────────────────────┐
-  │  DataProcessor   │                  │   Master Catalog (3-tier) │
+  │  DataProcessor   │                  │   Master Catalog          │
   │  PapaParse+xlsx  │                  │                           │
   │  column detect,  │                  │  Supabase  ─► source of   │
   │  dedup, allergen │                  │  localStorage ─► offline  │
-  │  + date parsing  │                  │  static file ─► last resort│
+  │  + date parsing  │                  │                           │
   └────────┬─────────┘                  └─────────────┬─────────────┘
            │  sessionStorage                          │  name / strain / case lookup
            ▼                                           ▼
@@ -87,11 +87,11 @@ The single most field-earned line in the codebase. Many of the warehouse's handh
 
 The fix is one character: the encoded barcode value is prefixed with a tilde (`~`), so the scanner strips the tilde instead of the first real digit and the payload arrives intact. It is the kind of thing you only learn by standing next to the hardware, and it is exactly why the label renderer encodes `'~' + value`.
 
-### 2. Excel corrupts long barcodes, silently
+### 2. Excel corrupts long barcodes, and my first fix was wrong
 
-Barcodes are 16-digit numbers. The moment one passes through Excel, it can come back as `7.75984E+15`. If you trust the cell, you print a garbage barcode on a real box.
+Barcodes are 16-digit numbers. The moment one passes through Excel, it can come back as `7.75984E+15`. My first fix rounded that back into a full integer, which looked right and was not: those digits are gone, so it fabricated a barcode that could then be printed on a real box.
 
-The importer detects scientific-notation strings and reconstructs the full integer (`Number(...).toFixed(0)`) before normalizing away stray spaces, hyphens, and tildes. Small function, prevents a whole class of unscannable labels.
+The importer now treats a scientific-notation identifier as a hard row error and never guesses. It also finds Package IDs that were stored as Excel numbers and quarantines only those label rows, so one unsafe cell does not block a whole mixed report.
 
 ### 3. Two facilities, two orientations, one renderer
 
@@ -103,9 +103,9 @@ A print run can be hundreds of pages, each an oversampled canvas rendered to JPE
 
 The generator degrades deliberately under load: full resolution for normal runs, then it steps the canvas scale down at 200 and 400 pages, yields back to the event loop every 20 pages so the UI stays alive, drives a live progress bar, and calls `window.gc()` when the browser exposes it. It trades a little print sharpness on huge runs for finishing the run at all.
 
-### 5. An offline-first catalog that heals itself
+### 5. A catalog that survives a dropped connection
 
-The catalog that maps BioTrack codes to real product names is the heart of the tool, and the floor cannot wait on a flaky connection. Loading follows a three-tier fallback: Supabase first (source of truth), then a `localStorage` copy (offline), then a bundled static file (last resort). A successful Supabase read writes through to `localStorage` so the next offline session is covered.
+The catalog that maps BioTrack codes to real product names is the heart of the tool, and the floor cannot wait on a flaky connection. Loading follows a fallback: Supabase first (source of truth), then a verified `localStorage` copy (offline). An earlier bundled static file was removed because it hardcoded one legacy worksheet. A successful Supabase read writes through to `localStorage` so the next offline session is covered.
 
 Cache invalidation is version-gated: on startup the app compares a stored catalog version against the current one and clears stale keys while preserving the catalog and any operator overrides. When the app itself ships a new version, session data is cleared but durable config survives.
 
@@ -155,7 +155,7 @@ Each 4x6 label is composed on the fly from the resolved product and the operator
 |--------|-------|
 | Status | Built Jul 2025; in daily use on the floor |
 | Labels generated | 144,000+ since tracking began Aug 2026, about 2,400 on a working day |
-| Version | v7.7.6 (evolved through several label-format migrations) |
+| Version | v7.8 (evolved through several label-format migrations) |
 | Facilities | 2 (horizontal and vertical label formats) |
 | Operators | Named per-user accounts with Administrator and Warehouse roles |
 | Catalog | 1,000+ products, paginated past Supabase's default row limit |
@@ -183,7 +183,7 @@ The interesting engineering here is not scale for its own sake. It is the accumu
 
 The production code is private because it is an internal tool that prints on a real employer's inventory and reads from their catalog. This repo documents the engineering without exposing anything sensitive: no company data, no credentials, no employee records, no code.
 
-If you want to read my code, my open-source projects are the place. [solhunt](https://github.com/claygeo/solhunt) (autonomous exploit agent) and the [Hyperliquid Trading Simulator](https://github.com/claygeo/hyperliquid-trading-sim) (real-time data ingestion, state management, full-stack) are fully open.
+If you want to read my code, my open-source projects are the place. [solhunt](https://github.com/claygeo/solhunt) (agent for authorized smart-contract research), [distru-mcp](https://github.com/claygeo/distru-mcp) (MCP server) and [sandwich-rs](https://github.com/claygeo/sandwich-rs) (Rust) are fully open. A readable case study of this system is at [claygeo.dev](https://claygeo.dev/work/warehouse-labeling-system/).
 
 ---
 
