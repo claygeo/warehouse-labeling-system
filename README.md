@@ -17,7 +17,7 @@ A production warehouse-floor tool that turns messy inventory exports into scanna
 
 The warehouse relabels product before it ships. The source data comes out of a state track-and-trace system (BioTrack) and a transfer tool (Sweed) as CSV and Excel exports, and it is rough: three different report formats, columns that move between exports, product names abbreviated into codes a human cannot read, and Excel quietly corrupting 16-digit barcodes into scientific notation (`7.75984E+15`).
 
-On top of that, two facilities run different label orientations, print runs can be thousands of labels at once, and the whole thing has to work on a warehouse floor where the network is not guaranteed. The old process leaned on spreadsheets and a legacy label sheet. It was slow, it was error-prone, and a wrong label on a box is a real operational problem.
+On top of that, two facilities run different label orientations, print runs can be thousands of labels at once, and the whole thing has to work on a warehouse floor where the network is not guaranteed. The old process was done by hand: print an Excel template, fill it out with a pen, then write the details on each box with a Sharpie. It was slow, it was error-prone, and a wrong label on a box is a real operational problem.
 
 ## What I Built
 
